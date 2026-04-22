@@ -208,8 +208,11 @@ def registro(code):
         notas  = request.form.get('notas','').strip()
         if alumno and pc and estado:
             with db() as con:
-                con.execute("INSERT INTO registros(sid,alumno,pc,estado,notas) VALUES(?,?,?,?,?)",
-                            (s['id'], alumno, pc, estado, notas))
+                already = con.execute(
+                    "SELECT id FROM registros WHERE sid=? AND pc=?", (s['id'], pc)).fetchone()
+                if not already:
+                    con.execute("INSERT INTO registros(sid,alumno,pc,estado,notas) VALUES(?,?,?,?,?)",
+                                (s['id'], alumno, pc, estado, notas))
             return render_template('confirmacion.html',
                 alumno=alumno, pc=pc, estado=estado, grupo=s['grupo'], sala=s['sala'])
     with db() as con:
