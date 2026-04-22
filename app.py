@@ -128,15 +128,35 @@ def reabrir(sid):
 def descargar_csv(sid):
     with db() as con:
         s    = con.execute("SELECT * FROM sesiones WHERE id=?", (sid,)).fetchone()
-        regs = con.execute("SELECT * FROM registros WHERE sid=? ORDER BY ts", (sid,)).fetchall()
+        regs = con.execute("SELECT * FROM registros WHERE sid=? ORDER BY CAST(pc AS INTEGER)", (sid,)).fetchall()
+        devs = con.execute("SELECT pc, estado, notas, ts FROM devoluciones WHERE sid=?", (sid,)).fetchall()
+    devs_map = {d['pc']: d for d in devs}
     out = io.StringIO()
     w = csv.writer(out)
-    w.writerow(['Profesor','Grupo','Sala','Fecha','Hora de sesión'])
-    w.writerow([s['profesor'], s['grupo'], s['sala'], s['fecha'], s['hora']])
+    # Header
+    w.writerow(['Bitácora Lab — Reporte de sesión'])
+    w.writerow(['Profesor', s['profesor'], 'Grupo', s['grupo'], 'Sala', s['sala'], 'Fecha', s['fecha'], 'Hora', s['hora']])
     w.writerow([])
-    w.writerow(['#','Alumno','Computadora','Estado','Notas','Hora de registro'])
-    for i,r in enumerate(regs,1):
+    # Registration log
+    w.writerow(['REGISTRO DE ENTRADA'])
+    w.writerow(['#', 'Alumno', 'Computadora', 'Estado inicial', 'Notas', 'Hora de registro'])
+    for i, r in enumerate(regs, 1):
         w.writerow([i, r['alumno'], r['pc'], r['estado'], r['notas'], r['ts']])
+    w.writerow([])
+    # Devolution log
+    w.writerow(['REPORTE DE DEVOLUCIÓN'])
+    w.writerow(['#', 'Alumno', 'Computadora', 'Estado inicial', 'Resultado devolución', 'Daño reportado', 'Hora devolución'])
+    for i, r in enumerate(regs, 1):
+        dev = devs_map.get(r['pc'])
+        if dev:
+            resultado = '✔ Sin daño nuevo' if dev['estado'] == 'ok' else '⚠ DAÑO'
+            dano = dev['notas'] if dev['estado'] == 'danada' else ''
+            hora_dev = dev['ts']
+        else:
+            resultado = '— No revisada'
+            dano = ''
+            hora_dev = ''
+        w.writerow([i, r['alumno'], r['pc'], r['estado'], resultado, dano, hora_dev])
     resp = make_response('\ufeff' + out.getvalue())   # BOM for Excel
     resp.headers['Content-Type'] = 'text/csv; charset=utf-8'
     resp.headers['Content-Disposition'] = f'attachment; filename=bitacora_{s["grupo"]}_{s["fecha"]}.csv'
