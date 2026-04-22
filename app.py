@@ -220,6 +220,25 @@ def registro(code):
             "SELECT pc, alumno FROM registros WHERE sid=?", (s['id'],)).fetchall()}
     return render_template('registro.html', s=s, ocupadas=ocupadas, estados=ESTADOS)
 
+RESET_KEY = os.environ.get('RESET_KEY', 'flores2025')
+
+@app.route('/admin/reset', methods=['GET','POST'])
+def admin_reset():
+    error = None
+    if request.method == 'POST':
+        if request.form.get('key') != RESET_KEY:
+            error = 'Contraseña incorrecta.'
+        else:
+            with db() as con:
+                con.executescript("""
+                    DELETE FROM devoluciones;
+                    DELETE FROM registros;
+                    DELETE FROM sesiones;
+                    DELETE FROM sqlite_sequence WHERE name IN ('sesiones','registros','devoluciones');
+                """)
+            return render_template('admin_reset.html', done=True)
+    return render_template('admin_reset.html', done=False, error=error)
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"\n  Bitacora Lab iniciada en puerto {port}\n")
