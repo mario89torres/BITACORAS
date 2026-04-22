@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
 {% block title %}Registro — {{ s.grupo }} {{ s.sala }}{% endblock %}
 {% block extra_style %}
-body { background: #EFF3FB; }
+body { background: #F0F5FB; }
 .step-label {
   font-size: .75rem; font-weight: 700; letter-spacing: .12em;
-  text-transform: uppercase; color: #1565C0; margin-bottom: .4rem;
+  text-transform: uppercase; color: #1B4F9B; margin-bottom: .4rem;
 }
 .step-card {
   background: #fff; border-radius: 16px;
@@ -19,8 +19,8 @@ body { background: #EFF3FB; }
   transition: all .15s; color: #2D3748; display: flex;
   align-items:center; justify-content:center;
 }
-.pc-btn:hover:not(.ocupada) { border-color: #1565C0; background: #EBF5FB; }
-.pc-btn.seleccionada { background: #1565C0; border-color: #1565C0; color: #fff; transform: scale(1.1); box-shadow: 0 4px 12px rgba(21,101,192,.4); }
+.pc-btn:hover:not(.ocupada) { border-color: #1B4F9B; background: #EBF5FB; }
+.pc-btn.seleccionada { background: #1B4F9B; border-color: #1B4F9B; color: #fff; transform: scale(1.1); box-shadow: 0 4px 12px rgba(21,101,192,.4); }
 .pc-btn.ocupada { background: #F0F0F0; border-color: #E0E0E0; color: #BDBDBD; cursor: not-allowed; position: relative; }
 .estado-btn {
   flex: 1; padding: 1rem .5rem; border-radius: 14px;
