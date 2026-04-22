@@ -30,6 +30,14 @@ def init_db():
             alumno TEXT, pc TEXT, estado TEXT, notas TEXT DEFAULT '',
             ts TEXT DEFAULT (datetime('now','localtime'))
         );
+        CREATE TABLE IF NOT EXISTS devoluciones(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sid INTEGER REFERENCES sesiones(id),
+            pc TEXT, alumno TEXT,
+            estado TEXT,
+            notas TEXT DEFAULT '',
+            ts TEXT DEFAULT (datetime('now','localtime'))
+        );
         """)
 
 def mk_code():
@@ -133,6 +141,39 @@ def descargar_csv(sid):
     resp.headers['Content-Type'] = 'text/csv; charset=utf-8'
     resp.headers['Content-Disposition'] = f'attachment; filename=bitacora_{s["grupo"]}_{s["fecha"]}.csv'
     return resp
+
+@app.route('/sesion/<int:sid>/devolucion')
+def devolucion(sid):
+    with db() as con:
+        s    = con.execute("SELECT * FROM sesiones WHERE id=?", (sid,)).fetchone()
+        regs = con.execute("SELECT pc, alumno FROM registros WHERE sid=? ORDER BY CAST(pc AS INTEGER)", (sid,)).fetchall()
+        devs = con.execute("SELECT pc, estado FROM devoluciones WHERE sid=?", (sid,)).fetchall()
+    if not s: return redirect(url_for('index'))
+    devs_map = {d['pc']: d['estado'] for d in devs}
+    return render_template('devolucion.html', s=s, regs=regs, devs_map=devs_map)
+
+@app.route('/sesion/<int:sid>/devolucion/marcar', methods=['POST'])
+def devolucion_marcar(sid):
+    pc     = request.json.get('pc', '').strip()
+    estado = request.json.get('estado', '').strip()
+    notas  = request.json.get('notas', '').strip()
+    with db() as con:
+        alumno = con.execute("SELECT alumno FROM registros WHERE sid=? AND pc=?", (sid, pc)).fetchone()
+        alumno = alumno['alumno'] if alumno else ''
+        existing = con.execute("SELECT id FROM devoluciones WHERE sid=? AND pc=?", (sid, pc)).fetchone()
+        if existing:
+            con.execute("UPDATE devoluciones SET estado=?, notas=?, ts=datetime('now','localtime') WHERE sid=? AND pc=?",
+                        (estado, notas, sid, pc))
+        else:
+            con.execute("INSERT INTO devoluciones(sid, pc, alumno, estado, notas) VALUES(?,?,?,?,?)",
+                        (sid, pc, alumno, estado, notas))
+    return jsonify({'ok': True, 'pc': pc, 'estado': estado})
+
+@app.route('/sesion/<int:sid>/devolucion/datos')
+def devolucion_datos(sid):
+    with db() as con:
+        devs = con.execute("SELECT pc, estado, notas, ts FROM devoluciones WHERE sid=? ORDER BY ts", (sid,)).fetchall()
+    return jsonify([dict(d) for d in devs])
 
 @app.route('/r/<code>', methods=['GET','POST'])
 def registro(code):

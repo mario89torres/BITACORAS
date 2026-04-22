@@ -1,0 +1,259 @@
+{% extends 'base.html' %}
+{% block title %}Devolución {{ s.grupo }} — Bitácora Lab{% endblock %}
+{% block extra_style %}
+.pc-btn {
+  width: 64px; height: 64px; border-radius: 12px; font-size: 1.2rem;
+  font-weight: 700; border: 2px solid #ccc; background: #fff;
+  cursor: pointer; transition: all .15s; display: flex;
+  align-items: center; justify-content: center; flex-direction: column;
+  line-height: 1.1; position: relative;
+}
+.pc-btn:hover { transform: scale(1.08); }
+.pc-btn.pendiente { border-color: #FFA000; background: #FFF8E1; color: #795548; }
+.pc-btn.ok        { border-color: #388E3C; background: #E8F5E9; color: #2E7D32; }
+.pc-btn.danada    { border-color: #C62828; background: #FFEBEE; color: #C62828; }
+.pc-btn.sin-reg   { border-color: #e0e0e0; background: #fafafa; color: #bdbdbd; cursor: default; }
+.pc-label { font-size: .6rem; font-weight: 400; margin-top: 2px; }
+.modal-estado-btn {
+  width: 100%; padding: 1.2rem; font-size: 1.1rem; font-weight: 700;
+  border-radius: 14px; border: none; cursor: pointer; transition: transform .1s;
+}
+.modal-estado-btn:hover { transform: scale(1.03); }
+.btn-ok     { background: #E8F5E9; color: #2E7D32; border: 2px solid #A5D6A7; }
+.btn-danada { background: #FFEBEE; color: #C62828; border: 2px solid #EF9A9A; }
+#notas-area { display: none; }
+{% endblock %}
+{% block content %}
+
+<div class="card mb-4">
+  <div class="card-body p-4">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+      <div>
+        <h3 class="fw-bold mb-1">
+          <span class="badge bg-warning text-dark fs-5 me-2">
+            <i class="bi bi-arrow-return-left me-1"></i>Devolución
+          </span>
+          <span class="badge bg-primary fs-5">{{ s.grupo }}</span>
+          <span class="ms-2 text-muted fs-6">{{ s.sala }}</span>
+        </h3>
+        <p class="text-muted mb-0 small">
+          <i class="bi bi-person-badge me-1"></i>{{ s.profesor }}
+          &nbsp;·&nbsp;
+          <i class="bi bi-calendar3 me-1"></i>{{ s.fecha }}
+        </p>
+      </div>
+      <a href="/sesion/{{ s.id }}" class="btn btn-outline-secondary fw-semibold">
+        <i class="bi bi-arrow-left me-1"></i>Volver a sesión
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Progress -->
+<div class="card mb-4">
+  <div class="card-body py-3 px-4">
+    <div class="d-flex align-items-center justify-content-between mb-2">
+      <span class="fw-semibold">Computadoras revisadas</span>
+      <span class="fw-bold fs-5" id="countLabel">{{ devs_map|length }} / {{ regs|length }}</span>
+    </div>
+    <div class="progress" style="height:14px; border-radius:7px;">
+      <div class="progress-bar bg-warning" id="progressBar" role="progressbar"
+        style="width: {{ (devs_map|length / regs|length * 100)|int if regs|length > 0 else 0 }}%;
+               border-radius:7px;"></div>
+    </div>
+    <div class="d-flex gap-3 mt-2 small text-muted">
+      <span><span class="badge bg-warning text-dark">●</span> Pendiente</span>
+      <span><span class="badge" style="background:#2E7D32">●</span> Sin daño</span>
+      <span><span class="badge bg-danger">●</span> Daño nuevo</span>
+      <span><span class="badge bg-light text-secondary border">●</span> Sin registro</span>
+    </div>
+  </div>
+</div>
+
+<!-- PC Grid -->
+<div class="card mb-4">
+  <div class="card-header bg-white py-3">
+    <h5 class="mb-0 fw-semibold">
+      <i class="bi bi-grid-3x3-gap me-2 text-warning"></i>
+      Toca la computadora que el alumno muestra
+    </h5>
+  </div>
+  <div class="card-body p-4">
+    <div class="d-flex flex-wrap gap-2" id="pcGrid">
+      {% for r in regs %}
+        {% set st = devs_map.get(r.pc, 'pendiente') %}
+        {% if st == 'ok' %}
+          {% set cls = 'ok' %}{% set icon = '✅' %}
+        {% elif st == 'danada' %}
+          {% set cls = 'danada' %}{% set icon = '🔴' %}
+        {% else %}
+          {% set cls = 'pendiente' %}{% set icon = '💻' %}
+        {% endif %}
+        <button class="pc-btn {{ cls }}" data-pc="{{ r.pc }}" data-alumno="{{ r.alumno }}"
+                onclick="abrirModal('{{ r.pc }}', '{{ r.alumno }}')">
+          {{ icon }}<span class="pc-label">{{ r.pc }}</span>
+        </button>
+      {% endfor %}
+    </div>
+    {% if not regs %}
+    <p class="text-muted text-center py-4">No hay computadoras registradas en esta sesión.</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Summary table -->
+<div class="card" id="resumenCard" {% if not devs_map %}style="display:none"{% endif %}>
+  <div class="card-header bg-white py-3">
+    <h5 class="mb-0 fw-semibold"><i class="bi bi-table me-2 text-primary"></i>Resumen de devolución</h5>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-4">PC</th>
+            <th>Alumno</th>
+            <th class="text-center">Resultado</th>
+            <th>Notas</th>
+            <th>Hora</th>
+          </tr>
+        </thead>
+        <tbody id="resumenBody">
+          {% for pc, estado in devs_map.items() %}
+          {% set alumno = namespace(val='') %}
+          {% for r in regs %}{% if r.pc == pc %}{% set alumno.val = r.alumno %}{% endif %}{% endfor %}
+          <tr>
+            <td class="ps-4"><span class="badge bg-primary fs-6 px-3">{{ pc }}</span></td>
+            <td class="fw-semibold">{{ alumno.val }}</td>
+            <td class="text-center">
+              {% if estado == 'ok' %}
+              <span class="badge" style="background:#2E7D32;font-size:.9rem">✅ Sin daño</span>
+              {% else %}
+              <span class="badge bg-danger" style="font-size:.9rem">🔴 Daño nuevo</span>
+              {% endif %}
+            </td>
+            <td class="text-muted small"></td>
+            <td class="text-muted small"></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="modalDev" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" style="border-radius:20px; overflow:hidden;">
+      <div class="modal-header border-0 pb-0">
+        <div>
+          <h5 class="modal-title fw-bold mb-0" id="modalTitle">Computadora #<span id="modalPC"></span></h5>
+          <p class="text-muted mb-0 small"><i class="bi bi-person me-1"></i><span id="modalAlumno"></span></p>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body pt-3">
+        <p class="fw-semibold mb-3 text-center">¿Cómo regresa la computadora?</p>
+        <div class="d-grid gap-3">
+          <button class="modal-estado-btn btn-ok" onclick="marcar('ok')">
+            ✅ Sin daño — igual o mejor que al inicio
+          </button>
+          <button class="modal-estado-btn btn-danada" onclick="marcar('danada')">
+            🔴 Daño nuevo — algo cambió o está peor
+          </button>
+        </div>
+        <div id="notas-area" class="mt-3">
+          <label class="form-label fw-semibold small">Descripción del daño (opcional)</label>
+          <textarea id="notasInput" class="form-control" rows="2" placeholder="Ej: pantalla rayada, tecla suelta…"></textarea>
+          <div class="d-grid mt-2">
+            <button class="btn btn-danger fw-bold" onclick="confirmarDanada()">Confirmar daño</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const SID = {{ s.id }};
+const TOTAL = {{ regs|length }};
+let modalPC = '', modalAlumno = '';
+let modal;
+
+document.addEventListener('DOMContentLoaded', () => {
+  modal = new bootstrap.Modal(document.getElementById('modalDev'));
+});
+
+function abrirModal(pc, alumno) {
+  modalPC = pc; modalAlumno = alumno;
+  document.getElementById('modalPC').textContent = pc;
+  document.getElementById('modalAlumno').textContent = alumno;
+  document.getElementById('notas-area').style.display = 'none';
+  document.getElementById('notasInput').value = '';
+  modal.show();
+}
+
+function marcar(estado) {
+  if (estado === 'danada') {
+    document.getElementById('notas-area').style.display = 'block';
+    return;
+  }
+  enviar(estado, '');
+}
+
+function confirmarDanada() {
+  enviar('danada', document.getElementById('notasInput').value.trim());
+}
+
+async function enviar(estado, notas) {
+  modal.hide();
+  const res = await fetch(`/sesion/${SID}/devolucion/marcar`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({pc: modalPC, estado, notas})
+  });
+  const data = await res.json();
+  if (data.ok) actualizarBtn(data.pc, data.estado, notas);
+}
+
+function actualizarBtn(pc, estado, notas) {
+  const btn = document.querySelector(`.pc-btn[data-pc="${pc}"]`);
+  if (!btn) return;
+  btn.className = `pc-btn ${estado === 'ok' ? 'ok' : 'danada'}`;
+  btn.innerHTML = (estado === 'ok' ? '✅' : '🔴') + `<span class="pc-label">${pc}</span>`;
+
+  // Update summary table
+  const tbody = document.getElementById('resumenBody');
+  const alumno = btn.dataset.alumno;
+  let row = tbody.querySelector(`tr[data-pc="${pc}"]`);
+  const badge = estado === 'ok'
+    ? `<span class="badge" style="background:#2E7D32;font-size:.9rem">✅ Sin daño</span>`
+    : `<span class="badge bg-danger" style="font-size:.9rem">🔴 Daño nuevo</span>`;
+  const hora = new Date().toTimeString().substring(0,5);
+  if (row) {
+    row.querySelector('.estado-cell').innerHTML = badge;
+    row.querySelector('.notas-cell').textContent = notas;
+    row.querySelector('.hora-cell').textContent = hora;
+  } else {
+    row = document.createElement('tr');
+    row.dataset.pc = pc;
+    row.innerHTML = `
+      <td class="ps-4"><span class="badge bg-primary fs-6 px-3">${pc}</span></td>
+      <td class="fw-semibold">${alumno}</td>
+      <td class="text-center estado-cell">${badge}</td>
+      <td class="text-muted small notas-cell">${notas}</td>
+      <td class="text-muted small hora-cell">${hora}</td>`;
+    tbody.appendChild(row);
+  }
+  document.getElementById('resumenCard').style.display = '';
+
+  // Update counter
+  const done = document.querySelectorAll('.pc-btn.ok, .pc-btn.danada').length;
+  document.getElementById('countLabel').textContent = `${done} / ${TOTAL}`;
+  document.getElementById('progressBar').style.width = `${Math.min(done/TOTAL*100,100)}%`;
+}
+</script>
+{% endblock %}
