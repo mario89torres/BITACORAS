@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, make_response
+from flask import Flask, render_template, request, redirect, url_for, jsonify, make_response, has_request_context
 import sqlite3, csv, io, socket, random, string, os
 from datetime import datetime
 
@@ -93,9 +93,10 @@ def sesion(sid):
         s    = con.execute("SELECT * FROM sesiones WHERE id=?", (sid,)).fetchone()
         regs = con.execute("SELECT * FROM registros WHERE sid=? ORDER BY ts", (sid,)).fetchall()
     if not s: return redirect(url_for('index'))
-    ip = local_ip()
+    base = request.host_url.rstrip('/')
+    url_alumno = f"{base}/r/{s['code']}"
     return render_template('sesion.html', s=s, regs=regs,
-        url_alumno=f"http://{ip}:5000/r/{s['code']}", ip=ip)
+        url_alumno=url_alumno, ip=local_ip())
 
 @app.route('/sesion/<int:sid>/datos')
 def sesion_datos(sid):
