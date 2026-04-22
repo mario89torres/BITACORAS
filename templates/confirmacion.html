@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}Registro exitoso{% endblock %}
+{% block extra_style %}
+body { background: #EFF3FB; }
+.confirm-card { max-width: 440px; margin: 3rem auto; text-align: center; }
+.check-circle {
+  width: 90px; height: 90px; background: #E8F5E9;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 1.5rem; font-size: 2.8rem;
+}
+{% endblock %}
+{% block content %}
+<div class="confirm-card">
+  <div class="card p-4 p-md-5">
+    <div class="check-circle text-success">✅</div>
+    <h3 class="fw-bold mb-1">¡Registrado!</h3>
+    <p class="text-muted mb-4">Tu información fue guardada correctamente.</p>
+    <table class="table table-borderless text-start mb-4">
+      <tr>
+        <td class="text-muted fw-semibold">Alumno</td>
+        <td class="fw-bold">{{ alumno }}</td>
+      </tr>
+      <tr>
+        <td class="text-muted fw-semibold">Computadora</td>
+        <td><span class="badge bg-primary fs-6 px-3">{{ pc }}</span></td>
+      </tr>
+      <tr>
+        <td class="text-muted fw-semibold">Estado</td>
+        <td>{{ estado }}</td>
+      </tr>
+      <tr>
+        <td class="text-muted fw-semibold">Grupo</td>
+        <td>{{ grupo }} — {{ sala }}</td>
+      </tr>
+    </table>
+    <p class="text-muted small">Ya puedes cerrar esta ventana.</p>
+  </div>
+</div>
+{% endblock %}

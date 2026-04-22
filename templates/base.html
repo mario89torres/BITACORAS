@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Bitácora Lab{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --bs-primary: #1565C0;
+      --bs-primary-rgb: 21,101,192;
+    }
+    body { background: #F0F4F8; font-family: 'Segoe UI', system-ui, sans-serif; }
+    .navbar { background: #1565C0 !important; }
+    .navbar-brand, .nav-link { color: #fff !important; }
+    .card { border: none; border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+    .card-header { border-radius: 14px 14px 0 0 !important; }
+    .btn-primary { background: #1565C0; border-color: #1565C0; }
+    .btn-primary:hover { background: #0D47A1; border-color: #0D47A1; }
+    .badge-buena   { background: #2E7D32; color: #fff; }
+    .badge-regular { background: #F57F17; color: #fff; }
+    .badge-danada  { background: #C62828; color: #fff; }
+    .estado-badge {
+      display: inline-block; padding: .25em .7em;
+      border-radius: 20px; font-size: .8em; font-weight: 600;
+    }
+    {% block extra_style %}{% endblock %}
+  </style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg shadow-sm mb-4">
+  <div class="container">
+    <a class="navbar-brand fw-bold" href="/"><i class="bi bi-journal-text me-2"></i>Bitácora Lab</a>
+    <div class="ms-auto">
+      <a href="/nueva" class="btn btn-light btn-sm fw-semibold">
+        <i class="bi bi-plus-circle me-1"></i> Nueva sesión
+      </a>
+    </div>
+  </div>
+</nav>
+<div class="container pb-5">
+  {% block content %}{% endblock %}
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

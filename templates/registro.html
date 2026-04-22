@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+{% block title %}Registro — {{ s.grupo }} {{ s.sala }}{% endblock %}
+{% block extra_style %}
+body { background: #EFF3FB; }
+.step-label {
+  font-size: .75rem; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: #1565C0; margin-bottom: .4rem;
+}
+.step-card {
+  background: #fff; border-radius: 16px;
+  box-shadow: 0 2px 16px rgba(0,0,0,.07); padding: 1.25rem 1.5rem;
+  margin-bottom: 1rem;
+}
+.pc-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.pc-btn {
+  width: 52px; height: 52px; border-radius: 10px;
+  border: 2px solid #CBD5E0; background: #fff;
+  font-size: .95rem; font-weight: 700; cursor: pointer;
+  transition: all .15s; color: #2D3748; display: flex;
+  align-items:center; justify-content:center;
+}
+.pc-btn:hover:not(.ocupada) { border-color: #1565C0; background: #EBF5FB; }
+.pc-btn.seleccionada { background: #1565C0; border-color: #1565C0; color: #fff; transform: scale(1.1); box-shadow: 0 4px 12px rgba(21,101,192,.4); }
+.pc-btn.ocupada { background: #F0F0F0; border-color: #E0E0E0; color: #BDBDBD; cursor: not-allowed; position: relative; }
+.estado-btn {
+  flex: 1; padding: 1rem .5rem; border-radius: 14px;
+  border: 3px solid transparent; font-size: .95rem; font-weight: 700;
+  cursor: pointer; transition: all .15s; text-align: center;
+  background: #F8FAFC;
+}
+.estado-btn:hover { transform: translateY(-2px); }
+.estado-btn.sel-buena   { background: #E8F5E9; border-color: #2E7D32; color: #2E7D32; }
+.estado-btn.sel-regular { background: #FFF8E1; border-color: #F57F17; color: #E65100; }
+.estado-btn.sel-danada  { background: #FFEBEE; border-color: #C62828; color: #C62828; }
+.estado-btn.idle-buena  { border-color: #A5D6A7; color: #4CAF50; }
+.estado-btn.idle-regular{ border-color: #FFE082; color: #FF8F00; }
+.estado-btn.idle-danada { border-color: #EF9A9A; color: #EF5350; }
+#btnSubmit { font-size: 1.1rem; border-radius: 14px; }
+{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-7 col-md-9">
+
+    <!-- Header -->
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <div>
+        <h5 class="fw-bold mb-0">
+          <span class="badge bg-primary fs-5 me-2">{{ s.grupo }}</span>
+          {{ s.sala }}
+        </h5>
+        <small class="text-muted">{{ s.fecha }} · {{ s.hora }}</small>
+      </div>
+      <div class="text-end">
+        <small class="text-muted d-block">Registradas</small>
+        <strong class="fs-5 text-primary">{{ ocupadas|length }} / {{ s.num_pc }}</strong>
+      </div>
+    </div>
+
+    <form method="POST" id="regForm" novalidate>
+      <!-- PASO 1: Nombre -->
+      <div class="step-card">
+        <div class="step-label"><i class="bi bi-1-circle-fill me-1"></i>Tu nombre completo</div>
+        <input type="text" name="alumno" id="alumnoInput"
+          class="form-control form-control-lg rounded-3"
+          placeholder="Escribe tu nombre y apellido"
+          style="border:2px solid #CBD5E0; font-size:1.05rem;"
+          required autofocus autocomplete="name">
+      </div>
+
+      <!-- PASO 2: Computadora -->
+      <div class="step-card">
+        <div class="step-label"><i class="bi bi-2-circle-fill me-1"></i>Tu computadora</div>
+        <input type="hidden" name="pc" id="pcInput" required>
+        <div class="pc-grid" id="pcGrid">
+          {% for i in range(1, s.num_pc + 1) %}
+          {% set n = i|string %}
+          {% if n in ocupadas %}
+          <button type="button" class="pc-btn ocupada" disabled
+            title="{{ ocupadas[n] }}" data-bs-toggle="tooltip">
+            {{ n }}
+          </button>
+          {% else %}
+          <button type="button" class="pc-btn" onclick="selPC(this,'{{ n }}')">{{ n }}</button>
+          {% endif %}
+          {% endfor %}
+        </div>
+        <p class="text-muted small mt-2 mb-0">
+          <i class="bi bi-info-circle me-1"></i>
+          Las computadoras en gris ya fueron tomadas.
+        </p>
+      </div>
+
+      <!-- PASO 3: Estado -->
+      <div class="step-card">
+        <div class="step-label"><i class="bi bi-3-circle-fill me-1"></i>Estado de la computadora al llegar</div>
+        <input type="hidden" name="estado" id="estadoInput" required>
+        <div class="d-flex gap-2">
+          <button type="button" class="estado-btn idle-buena"
+            onclick="selEstado(this,'✅ Buena','sel-buena')">
+            <div style="font-size:2rem">✅</div>
+            <div>Buena</div>
+            <div style="font-size:.75rem;opacity:.7">Todo en orden</div>
+          </button>
+          <button type="button" class="estado-btn idle-regular"
+            onclick="selEstado(this,'⚠️ Regular','sel-regular')">
+            <div style="font-size:2rem">⚠️</div>
+            <div>Regular</div>
+            <div style="font-size:.75rem;opacity:.7">Detalle menor</div>
+          </button>
+          <button type="button" class="estado-btn idle-danada"
+            onclick="selEstado(this,'🔴 Dañada','sel-danada')">
+            <div style="font-size:2rem">🔴</div>
+            <div>Dañada</div>
+            <div style="font-size:.75rem;opacity:.7">Problema real</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Notas opcionales -->
+      <div class="mb-3">
+        <button type="button" class="btn btn-link btn-sm text-muted p-0"
+          onclick="document.getElementById('notasBox').classList.toggle('d-none')">
+          <i class="bi bi-chat-dots me-1"></i>Agregar nota (opcional)
+        </button>
+        <textarea id="notasBox" name="notas" rows="2"
+          class="form-control mt-2 d-none rounded-3"
+          placeholder="Describe el problema brevemente…"></textarea>
+      </div>
+
+      <!-- Submit -->
+      <div class="d-grid">
+        <button type="submit" id="btnSubmit"
+          class="btn btn-primary btn-lg py-3 fw-bold"
+          disabled>
+          <i class="bi bi-check-circle-fill me-2"></i>Registrar mi computadora
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let pcSel = null, estadoSel = null;
+
+function selPC(el, n) {
+  document.querySelectorAll('.pc-btn:not(.ocupada)').forEach(b => b.classList.remove('seleccionada'));
+  el.classList.add('seleccionada');
+  document.getElementById('pcInput').value = n;
+  pcSel = n;
+  checkReady();
+}
+
+function selEstado(el, val, cls) {
+  document.querySelectorAll('.estado-btn').forEach(b => {
+    b.classList.remove('sel-buena','sel-regular','sel-danada');
+  });
+  el.classList.add(cls);
+  document.getElementById('estadoInput').value = val;
+  estadoSel = val;
+  checkReady();
+}
+
+function checkReady() {
+  const alumno = document.getElementById('alumnoInput').value.trim();
+  const ready = alumno.length > 2 && pcSel && estadoSel;
+  document.getElementById('btnSubmit').disabled = !ready;
+}
+
+document.getElementById('alumnoInput').addEventListener('input', checkReady);
+document.getElementById('regForm').addEventListener('submit', function(e) {
+  const btn = document.getElementById('btnSubmit');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Registrando…';
+});
+
+// Bootstrap tooltips for occupied computers
+document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+  new bootstrap.Tooltip(el);
+});
+</script>
+{% endblock %}

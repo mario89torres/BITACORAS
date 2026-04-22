@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+{% block title %}Sesión {{ s.grupo }} — Bitácora Lab{% endblock %}
+{% block extra_style %}
+.info-pill {
+  background: #EFF3FB; border-radius: 10px; padding: .4rem 1rem;
+  font-size: .9rem; display: inline-flex; align-items: center; gap: .4rem;
+}
+.url-box {
+  background: #0D1117; color: #58D68D; font-family: monospace;
+  font-size: 1.2rem; border-radius: 12px; padding: 1rem 1.5rem;
+  letter-spacing: .04em; word-break: break-all;
+}
+.code-badge {
+  background: #1565C0; color: #fff; font-size: 1.8rem; font-family: monospace;
+  font-weight: 900; letter-spacing: .2em; padding: .4rem 1.2rem;
+  border-radius: 10px; display: inline-block;
+}
+.estado-buena   { background:#E8F5E9; color:#2E7D32; border:1px solid #A5D6A7; }
+.estado-regular { background:#FFF8E1; color:#E65100; border:1px solid #FFE082; }
+.estado-danada  { background:#FFEBEE; color:#C62828; border:1px solid #EF9A9A; }
+{% endblock %}
+{% block content %}
+
+<!-- Session header -->
+<div class="card mb-4">
+  <div class="card-body p-4">
+    <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
+      <div>
+        <h3 class="fw-bold mb-1">
+          <span class="badge bg-primary fs-4 me-2">{{ s.grupo }}</span>
+          {{ s.sala }}
+          {% if s.activa %}
+          <span class="badge bg-success ms-2">● Activa</span>
+          {% else %}
+          <span class="badge bg-secondary ms-2">Cerrada</span>
+          {% endif %}
+        </h3>
+        <div class="d-flex flex-wrap gap-2 mt-2">
+          <span class="info-pill"><i class="bi bi-person-badge"></i>{{ s.profesor }}</span>
+          <span class="info-pill"><i class="bi bi-calendar3"></i>{{ s.fecha }}</span>
+          <span class="info-pill"><i class="bi bi-clock"></i>{{ s.hora }}</span>
+        </div>
+      </div>
+      <div class="d-flex gap-2 flex-wrap">
+        {% if s.activa %}
+        <form method="POST" action="/sesion/{{ s.id }}/cerrar">
+          <button class="btn btn-outline-danger fw-semibold">
+            <i class="bi bi-stop-circle me-1"></i>Cerrar sesión
+          </button>
+        </form>
+        {% else %}
+        <form method="POST" action="/sesion/{{ s.id }}/reabrir">
+          <button class="btn btn-outline-success fw-semibold">
+            <i class="bi bi-arrow-repeat me-1"></i>Reabrir
+          </button>
+        </form>
+        {% endif %}
+        <a href="/sesion/{{ s.id }}/csv" class="btn btn-success fw-semibold">
+          <i class="bi bi-file-earmark-spreadsheet me-1"></i>Descargar CSV
+        </a>
+        <a href="/" class="btn btn-outline-secondary fw-semibold">
+          <i class="bi bi-house me-1"></i>Inicio
+        </a>
+      </div>
+    </div>
+
+    <!-- URL for students -->
+    {% if s.activa %}
+    <div class="row g-3 align-items-center">
+      <div class="col-md-8">
+        <p class="fw-semibold mb-1 text-muted small">URL PARA ALUMNOS</p>
+        <div class="url-box" id="urlBox">{{ url_alumno }}</div>
+      </div>
+      <div class="col-md-4 text-center">
+        <p class="fw-semibold mb-1 text-muted small">CÓDIGO DE SESIÓN</p>
+        <div class="code-badge">{{ s.code }}</div>
+        <button class="btn btn-sm btn-outline-secondary mt-2" onclick="copiarURL()">
+          <i class="bi bi-clipboard me-1"></i>Copiar URL
+        </button>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Progress -->
+<div class="card mb-4">
+  <div class="card-body py-3 px-4">
+    <div class="d-flex align-items-center justify-content-between mb-2">
+      <span class="fw-semibold">Computadoras registradas</span>
+      <span class="fw-bold fs-5" id="countLabel">{{ regs|length }} / {{ s.num_pc }}</span>
+    </div>
+    <div class="progress" style="height:14px; border-radius:7px;">
+      <div class="progress-bar bg-primary" id="progressBar" role="progressbar"
+        style="width: {{ (regs|length / s.num_pc * 100)|int }}%; border-radius:7px;"
+        aria-valuenow="{{ regs|length }}" aria-valuemax="{{ s.num_pc }}"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Live table -->
+<div class="card">
+  <div class="card-header bg-white py-3 d-flex align-items-center gap-3">
+    <h5 class="mb-0 fw-semibold"><i class="bi bi-list-check me-2 text-primary"></i>Registro en tiempo real</h5>
+    {% if s.activa %}
+    <span class="badge bg-success-subtle text-success border border-success-subtle px-3">
+      <span class="spinner-grow spinner-grow-sm me-1" role="status"></span>En vivo
+    </span>
+    {% endif %}
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th class="ps-4">#</th>
+          <th>Alumno</th>
+          <th class="text-center">Computadora</th>
+          <th class="text-center">Estado inicial</th>
+          <th>Notas</th>
+          <th>Hora</th>
+        </tr>
+      </thead>
+      <tbody id="regsBody">
+        {% for r in regs %}
+        <tr>
+          <td class="ps-4 text-muted">{{ loop.index }}</td>
+          <td class="fw-semibold">{{ r.alumno }}</td>
+          <td class="text-center"><span class="badge bg-primary fs-6 px-3">{{ r.pc }}</span></td>
+          <td class="text-center">
+            {% set ecls = 'estado-buena' if 'Buena' in r.estado else ('estado-regular' if 'Regular' in r.estado else 'estado-danada') %}
+            <span class="estado-badge {{ ecls }} px-3 py-1 rounded-pill">{{ r.estado }}</span>
+          </td>
+          <td class="text-muted small">{{ r.notas }}</td>
+          <td class="text-muted small">{{ r.ts[11:16] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <div id="emptyMsg" class="text-center py-5 text-muted {{ 'd-none' if regs else '' }}">
+      <i class="bi bi-hourglass-split fs-1 d-block mb-2"></i>
+      Esperando que los alumnos se registren…
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if s.activa %}
+<script>
+const SID = {{ s.id }};
+const NUM_PC = {{ s.num_pc }};
+
+function estadoClass(e) {
+  if (e.includes('Buena'))   return 'estado-buena';
+  if (e.includes('Regular')) return 'estado-regular';
+  return 'estado-danada';
+}
+
+async function refresh() {
+  try {
+    const res  = await fetch(`/sesion/${SID}/datos`);
+    const data = await res.json();
+    const regs = data.registros;
+    const tbody = document.getElementById('regsBody');
+    const empty = document.getElementById('emptyMsg');
+    document.getElementById('countLabel').textContent = `${regs.length} / ${NUM_PC}`;
+    document.getElementById('progressBar').style.width = `${Math.min(regs.length/NUM_PC*100,100)}%`;
+    tbody.innerHTML = regs.map((r,i) => `
+      <tr>
+        <td class="ps-4 text-muted">${i+1}</td>
+        <td class="fw-semibold">${r.alumno}</td>
+        <td class="text-center"><span class="badge bg-primary fs-6 px-3">${r.pc}</span></td>
+        <td class="text-center">
+          <span class="estado-badge ${estadoClass(r.estado)} px-3 py-1 rounded-pill">${r.estado}</span>
+        </td>
+        <td class="text-muted small">${r.notas}</td>
+        <td class="text-muted small">${r.ts.substring(11,16)}</td>
+      </tr>`).join('');
+    empty.classList.toggle('d-none', regs.length > 0);
+    if (!data.activa) clearInterval(timer);
+  } catch(e) {}
+}
+const timer = setInterval(refresh, 4000);
+
+function copiarURL() {
+  navigator.clipboard.writeText(document.getElementById('urlBox').textContent.trim());
+  const btn = event.target.closest('button');
+  btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>¡Copiado!';
+  setTimeout(() => btn.innerHTML = '<i class="bi bi-clipboard me-1"></i>Copiar URL', 2000);
+}
+</script>
+{% endif %}
+{% endblock %}
